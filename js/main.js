@@ -5,7 +5,7 @@ const submitButton = document.querySelector('.submit-button');
 
 let setStatus = status => {
   online.innerHTML = status;
-}
+};
 // !change all relevant objects to irrelevant
 let setRelevant = data => {
   if (data.relevant != undefined) {
@@ -15,8 +15,10 @@ let setRelevant = data => {
       setRelevant(data[key]);
     }
   }
-  return data;
-}
+  return new Promise((res, rej) => {
+    res(data);
+  });
+};
 // !Search all relevant objects
 let searchRelevantData = data => {
   if (data.relevant != undefined) {
@@ -26,20 +28,25 @@ let searchRelevantData = data => {
       searchRelevantData(data[key]);
     }
   }
-}
+  return data;
+};
 //! WebSocket ---------------------------------------------
 ws.onopen = () => setStatus('ONLINE');
 ws.onmessage = response =>  {
-  console.log(response.data);
-
+  let receivedData = JSON.parse(response.data);
   submitButton.addEventListener('click', () => {
-    let newData = setRelevant(JSON.parse(response.data));
-    newData[Object.keys(newData).length + 1] = {
-      "name": inputName.value,
-      "relevant": true
-    };
-    searchRelevantData(newData);
-    ws.send(JSON.stringify(newData));
+    setRelevant(receivedData)
+    .then(message => {
+      message[Object.keys(message).length + 1] = {
+        "name": inputName.value,
+        "relevant": true
+      }
+      return message;
+    })
+    .then(message => receivedData = message)
+    .then(message => searchRelevantData(message))
+    .then(message => ws.send(JSON.stringify(message)))
+    .catch(() => new Error('Error'));
   });
 }
 ws.onclose = () => setStatus('OFFLINE');
